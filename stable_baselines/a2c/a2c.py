@@ -38,7 +38,7 @@ class A2C(ActorCriticRLModel):
 
     def __init__(self, policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
                  learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, tensorboard_log=None,
-                 _init_setup_model=True):
+                 _init_setup_model=True, layers=None):
 
         super(A2C, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
                                   _init_setup_model=_init_setup_model)
@@ -76,6 +76,11 @@ class A2C(ActorCriticRLModel):
         self.summary = None
         self.episode_reward = None
 
+        if layers is None:
+            self.net_arch = layers
+        else:
+            self.net_arch = [dict(vf=layers, pi=layers)]
+
         # if we are loading, it is possible the environment is not known, however the obs and action space are known
         if _init_setup_model:
             self.setup_model()
@@ -99,12 +104,12 @@ class A2C(ActorCriticRLModel):
                     n_batch_train = self.n_envs * self.n_steps
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         n_batch_step, reuse=False)
+                                         n_batch_step, reuse=False, net_arch=self.net_arch)
 
                 with tf.variable_scope("train_model", reuse=True,
                                        custom_getter=tf_util.outer_scope_getter("train_model")):
                     train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                              self.n_steps, n_batch_train, reuse=True)
+                                              self.n_steps, n_batch_train, reuse=True, net_arch=self.net_arch)
 
                 with tf.variable_scope("loss", reuse=False):
                     self.actions_ph = train_model.pdtype.sample_placeholder([None], name="action_ph")
