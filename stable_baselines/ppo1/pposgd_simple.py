@@ -41,7 +41,8 @@ class PPO1(ActorCriticRLModel):
 
     def __init__(self, policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
                  optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
-                 schedule='linear', verbose=0, tensorboard_log=None, _init_setup_model=True):
+                 schedule='linear', verbose=0, tensorboard_log=None, _init_setup_model=True,
+                 layers=None):
 
         super().__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=False,
                          _init_setup_model=_init_setup_model)
@@ -73,6 +74,11 @@ class PPO1(ActorCriticRLModel):
         self.summary = None
         self.episode_reward = None
 
+        if layers is None:
+            self.net_arch = layers
+        else:
+            self.net_arch = [dict(vf=layers, pi=layers)]
+
         if _init_setup_model:
             self.setup_model()
 
@@ -85,12 +91,12 @@ class PPO1(ActorCriticRLModel):
 
                 # Construct network for new policy
                 self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                             None, reuse=False)
+                                             None, reuse=False, net_arch=self.net_arch)
 
                 # Network for old policy
                 with tf.variable_scope("oldpi", reuse=False):
                     old_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         None, reuse=False)
+                                         None, reuse=False, net_arch=self.net_arch)
 
                 with tf.variable_scope("loss", reuse=False):
                     # Target advantage function (if applicable)
